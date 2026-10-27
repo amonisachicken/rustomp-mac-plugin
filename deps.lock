@@ -1,0 +1,14 @@
+# 打包工具的外部依赖（都是固定版本，保证构建可复现）
+#
+# 改这里之前先读 rustomp/docs/ecosystem.md §7「已知风险」。
+
+# nih-plug：插件框架（插件仓的 Cargo.toml 里也是这个 rev）
+nih-plug-repo = https://github.com/robbert-vdh/nih-plug.git
+nih-plug-rev  = de42101
+# 打包用的 cargo 子命令必须与上面的 rev 一致，否则 bundler 行为可能不同
+cargo-nih-plug-install = cargo install --git https://github.com/robbert-vdh/nih-plug.git --rev de42101 cargo-nih-plug --locked
+
+# 第三方源码（scripts/fetch-third-party.sh 会按这些钉住拉取并打补丁）
+clap-wrapper-rev = 806bba0a5f792e3966b99c1561ab9952d3316d7c
+clap-sdk-tag     = 1.2.9
+audiounitsdk-tag = AudioUnitSDK-1.1.0

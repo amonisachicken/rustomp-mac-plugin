@@ -27,7 +27,9 @@ target/bundled/*.clap|*.vst3  ──►      plist 改写 / 改名 / ad-hoc 签�
 git clone git@github.com:amonisachicken/rustomp-mac-plugin.git ~/develop/rustomp-mac-plugin
 cd ~/develop/rustomp-mac-plugin
 ./scripts/fetch-third-party.sh        # 拉 clap-wrapper / CLAP SDK / AudioUnitSDK（固定 commit）
-./scripts/doctor.sh                   # 体检：cargo、Xcode CLT、cmake、两个 rust target…
+cargo install --git https://github.com/robbert-vdh/nih-plug.git \
+              --rev de42101 cargo-nih-plug --locked      # cargo 子命令（版本见 deps.lock）
+./scripts/doctor.sh                   # 体检：cargo / Xcode CLT / cmake / rust targets / cargo-nih-plug…
 
 # 2) 打包一个插件项目
 ./pack.sh ~/develop/sparklin-drive                       # mono + stereo，AU/VST3/CLAP，并安装

@@ -34,6 +34,15 @@ command -v python3 >/dev/null 2>&1 && ok "python3 $(python3 -V | awk '{print $2}
 
 command -v plutil >/dev/null 2>&1 && ok "plutil" || bad "没有 plutil（系统自带，异常）"
 
+# cargo-nih-plug：打包靠它（`cargo nih-plug bundle-universal`）。
+# 这不是 crates.io 上的普通依赖，必须显式装，且**钉同一个 rev**（见 deps.lock）。
+# 注意：不能用 `cargo nih-plug --help` 探测（它没有 --help 子命令，会返回非 0）
+if cargo --list 2>/dev/null | awk '{print $1}' | grep -qx nih-plug; then
+    ok "cargo-nih-plug"
+else
+    bad "没有 cargo-nih-plug（装法：cargo install --git https://github.com/robbert-vdh/nih-plug.git --rev de42101 cargo-nih-plug --locked）"
+fi
+
 # ---- universal 需要两个 target ----
 if command -v rustup >/dev/null 2>&1; then
     target=""

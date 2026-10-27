@@ -15,6 +15,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# clap-wrapper 的 CMAKE_OSX_DEPLOYMENT_TARGET 必须**显式给**（E88.3）：
+# 留空会走 "deployment < 10.15" 分支，去 CPM 下载 Gulrak filesystem —— 需要联网，
+# 断网/超时就报 `file DOWNLOAD cannot compute hash` + `Unknown CMake command CPMAddPackage`。
+MACOS_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET:-11.0}"
+# 并行度可配：`cmake --build -j20` 在 10 核机器上会把整机压到危险区（本机曾有内核恐慌史）
+BUILD_JOBS="${RUSTOMP_BUILD_JOBS:-4}"
+
 source "$ROOT/scripts/plugin-env.sh"
 PKG="$PLUGIN_PACKAGE"
 AU_TYPE="aufx"
@@ -67,6 +74,7 @@ echo "==> [3/7] clap-wrapper → AUv2"
 cmake -B build/au -S cmake \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+      -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET" \
       -DCLAP_BUNDLE="$CLAP" \
       -DRUSTOMP_AU_SUBTYPE="$AU_SUBTYPE" \
       -DRUSTOMP_AU_MANUFACTURER_CODE="$AU_MANUFACTURER" \
@@ -74,7 +82,7 @@ cmake -B build/au -S cmake \
       -DRUSTOMP_BUNDLE_ID="$BUNDLE_ID" \
       -DRUSTOMP_PLUGIN_NAME="$PLUGIN_NAME" > build/au/configure.log 2>&1 \
     || { tail -30 build/au/configure.log; exit 1; }
-cmake --build build/au --config Release -j"$(sysctl -n hw.ncpu)" > build/au/build.log 2>&1 \
+cmake --build build/au --config Release -j"$BUILD_JOBS" > build/au/build.log 2>&1 \
     || { grep -nE "error:" build/au/build.log | head -10; exit 1; }
 
 COMPONENT="build/au/${PLUGIN_NAME}.component"
@@ -97,7 +105,7 @@ cp "$AU_PLIST_SRC" "$AU_PLIST"
 # 补齐 Logic 需要、而 clap-wrapper 没写的键
 plutil -replace CFBundleIdentifier -string "$BUNDLE_ID" "$AU_PLIST"
 plutil -replace CFBundlePackageType -string "BNDL" "$AU_PLIST"
-plutil -insert LSMinimumSystemVersion -string "10.13" "$AU_PLIST" 2>/dev/null || true
+plutil -insert LSMinimumSystemVersion -string "$MACOS_DEPLOYMENT_TARGET" "$AU_PLIST" 2>/dev/null || true
 plutil -insert CFBundleSupportedPlatforms -json '["MacOSX"]' "$AU_PLIST" 2>/dev/null || true
 # sandboxSafe=NO -> Logic 在进程内托管，不经过 AUHostingService（ad-hoc 签名下更稳）
 plutil -replace AudioComponents.0.sandboxSafe -bool NO "$AU_PLIST" 2>/dev/null || true

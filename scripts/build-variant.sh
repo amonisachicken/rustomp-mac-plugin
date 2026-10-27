@@ -16,6 +16,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# clap-wrapper 的 CMAKE_OSX_DEPLOYMENT_TARGET 必须**显式给**（E88.3）：
+# 留空会走 "deployment < 10.15" 分支，去 CPM 下载 Gulrak filesystem —— 需要联网，
+# 断网/超时就报 `file DOWNLOAD cannot compute hash` + `Unknown CMake command CPMAddPackage`。
+MACOS_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET:-11.0}"
+# 并行度可配：`cmake --build -j20` 在 10 核机器上会把整机压到危险区（本机曾有内核恐慌史）
+BUILD_JOBS="${RUSTOMP_BUILD_JOBS:-4}"
+
 NO_INSTALL=0
 VARIANT=""
 for a in "$@"; do
@@ -78,6 +85,7 @@ mkdir -p "$BUILD_DIR"
 cmake -B "$BUILD_DIR" -S cmake \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+      -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET" \
       -DCLAP_BUNDLE="$DST_CLAP" \
       -DRUSTOMP_PLUGIN_NAME="$NAME" \
       -DRUSTOMP_AU_SUBTYPE="$SUBTYPE" \
@@ -85,7 +93,7 @@ cmake -B "$BUILD_DIR" -S cmake \
       -DRUSTOMP_AU_MANUFACTURER_NAME="$MANUFACTURER_NAME" \
       -DRUSTOMP_BUNDLE_ID="$BUNDLE_ID" > "$BUILD_DIR/configure.log" 2>&1 \
     || { tail -30 "$BUILD_DIR/configure.log"; exit 1; }
-cmake --build "$BUILD_DIR" --config Release -j"$(sysctl -n hw.ncpu)" > "$BUILD_DIR/build.log" 2>&1 \
+cmake --build "$BUILD_DIR" --config Release -j"$BUILD_JOBS" > "$BUILD_DIR/build.log" 2>&1 \
     || { grep -nE "error:" "$BUILD_DIR/build.log" | head -10; exit 1; }
 
 COMPONENT="$BUILD_DIR/${NAME}.component"
@@ -95,7 +103,7 @@ COMPONENT="$BUILD_DIR/${NAME}.component"
 cp "$BUILD_DIR/rustomp_as_auv2-build-helper-output/auv2_Info.plist" "$COMPONENT/Contents/Info.plist"
 plutil -replace CFBundleIdentifier -string "$BUNDLE_ID" "$COMPONENT/Contents/Info.plist"
 plutil -replace CFBundlePackageType -string "BNDL" "$COMPONENT/Contents/Info.plist"
-plutil -insert LSMinimumSystemVersion -string "10.13" "$COMPONENT/Contents/Info.plist" 2>/dev/null || true
+plutil -insert LSMinimumSystemVersion -string "$MACOS_DEPLOYMENT_TARGET" "$COMPONENT/Contents/Info.plist" 2>/dev/null || true
 plutil -insert CFBundleSupportedPlatforms -json '["MacOSX"]' "$COMPONENT/Contents/Info.plist" 2>/dev/null || true
 plutil -replace AudioComponents.0.sandboxSafe -bool NO "$COMPONENT/Contents/Info.plist" 2>/dev/null || true
 got=$(plutil -extract AudioComponents.0.subtype raw "$COMPONENT/Contents/Info.plist")

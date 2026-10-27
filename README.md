@@ -64,6 +64,8 @@ pack.sh <plugin_dir> [--variant mono|stereo|dual]... [--format au|vst3|clap]... 
 | `RUSTOMP_ROOT` | 显式指定框架目录（**默认**：`<plugin_dir>/../rustomp`，即同级目录） |
 | `PLUGIN_DIR` | 等价于第一个位置参数 |
 | `RUSTOMP_GUEST` | 若 `pack.sh` 由框架的 `build-all.sh` 调用，用它指定插件目录 |
+| `MACOS_DEPLOYMENT_TARGET` | AUv2 的最低系统版本（**默认 11.0**）。**不要留空**：clap-wrapper 在它为空时会走 "deployment < 10.15" 分支，去 CPM 下载 Gulrak filesystem（需要联网，断网就报 `Unknown CMake command CPMAddPackage`）；同时它会写进 AU 的 `LSMinimumSystemVersion` |
+| `RUSTOMP_BUILD_JOBS` | `cmake --build` 的并行度（**默认 4**）。原来按 `hw.ncpu` 给（本机 20 路），在 10 核机器上是无谓的整机压力 |
 
 目录约定（三个仓同级）：
 

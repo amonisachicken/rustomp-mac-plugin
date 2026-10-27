@@ -1,0 +1,9 @@
+# 第三方源码（由 scripts/fetch-third-party.sh 拉取）与构建产物
+/third_party/*
+!/third_party/.keep
+/build/
+/dist/
+*.clap/
+*.vst3/
+*.component/
+*.aaxplugin/

@@ -23,17 +23,20 @@ target/bundled/*.clap|*.vst3  ──►      plist 改写 / 改名 / ad-hoc 签�
 ## 快速开始
 
 ```bash
-# 1) 准备（只需一次）
-git clone git@github.com:amonisachicken/rustomp-mac-plugin.git ~/develop/rustomp-mac-plugin
-cd ~/develop/rustomp-mac-plugin
+# 1) 准备（只需一次）—— 三个仓放同一个目录（框架是本工具的同级）
+mkdir -p ~/projects && cd ~/projects
+git clone git@github.com:amonisachicken/rustomp.git
+git clone git@github.com:amonisachicken/rustomp-mac-plugin.git
+cd rustomp-mac-plugin
 ./scripts/fetch-third-party.sh        # 拉 clap-wrapper / CLAP SDK / AudioUnitSDK（固定 commit）
 cargo install --git https://github.com/robbert-vdh/nih-plug.git \
               --rev de42101 cargo-nih-plug --locked      # cargo 子命令（版本见 deps.lock）
 ./scripts/doctor.sh                   # 体检：cargo / Xcode CLT / cmake / rust targets / cargo-nih-plug…
 
 # 2) 打包一个插件项目
-./pack.sh ~/develop/sparklin-drive                       # mono + stereo，AU/VST3/CLAP，并安装
-./pack.sh ~/develop/sparklin-drive --variant stereo --format au --no-install
+git clone git@github.com:amonisachicken/sparklin-drive.git
+./pack.sh ../sparklin-drive                              # mono + stereo，AU/VST3/CLAP，并安装
+./pack.sh ../sparklin-drive --variant stereo --format au --no-install
 ```
 
 成功时 stdout **只有** `ARTIFACT:` 行（契约 B）：
@@ -58,9 +61,18 @@ pack.sh <plugin_dir> [--variant mono|stereo|dual]... [--format au|vst3|clap]... 
 
 | 环境变量 | 作用 |
 |---|---|
-| `RUSTOMP_ROOT` | 框架目录（默认自动探测 `<plugin_dir>/../rustomp`）；用来读 `rustomp.toml` |
+| `RUSTOMP_ROOT` | 显式指定框架目录（**默认**：`<plugin_dir>/../rustomp`，即同级目录） |
 | `PLUGIN_DIR` | 等价于第一个位置参数 |
 | `RUSTOMP_GUEST` | 若 `pack.sh` 由框架的 `build-all.sh` 调用，用它指定插件目录 |
+
+目录约定（三个仓同级）：
+
+```text
+some-dir/
+  rustomp/              ← 框架
+  rustomp-mac-plugin/   ← 本工具
+  sparklin-drive/       ← 插件项目
+```
 
 **插件项目必须住在框架目录树之外**：`cargo-nih-plug` 会向上找**最顶层**的 `Cargo.toml`
 当 workspace 根，插件嵌在 `rustomp/plugins/` 里会被拉到框架根 → `packages outside of workspace`。

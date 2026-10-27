@@ -75,7 +75,20 @@ fi
 if [ -n "$FRAME" ] && [ -f "$FRAME/tools/meta/plugin_meta.py" ]; then
     ok "rustomp 框架：$FRAME"
 else
-    bad "找不到 rustomp 框架（设 RUSTOMP_ROOT=/path/to/rustomp）"
+    bad "找不到 rustomp 框架 —— 读 rustomp.toml / 校验生成物都要用它"
+    # 提示里用插件钉的 tag（有 PLUGIN_DIR 时读它的 Cargo.toml）
+    _tag=""
+    if [ -n "${PLUGIN_DIR:-}" ] && [ -f "$PLUGIN_DIR/Cargo.toml" ]; then
+        _tag="$(grep -oE 'tag = "v[0-9]+\.[0-9]+\.[0-9]+"' "$PLUGIN_DIR/Cargo.toml" 2>/dev/null | head -1 | sed 's/tag = "//; s/"$//')"
+    fi
+    _tag="${_tag:-v0.1.0}"
+    cat >&2 <<EOT
+    装一次即可（用插件钉的那个 tag）：
+      git clone --depth 1 --branch ${_tag} https://github.com/amonisachicken/rustomp.git ~/develop/rustomp
+      export RUSTOMP_ROOT=~/develop/rustomp
+    或放在插件项目的**同级目录**（自动找到）：../rustomp
+    仓库：https://github.com/amonisachicken/rustomp
+EOT
 fi
 
 # ---- 第三方源码（AUv2 需要）----

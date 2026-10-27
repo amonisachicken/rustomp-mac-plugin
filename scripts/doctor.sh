@@ -41,7 +41,7 @@ if command -v rustup >/dev/null 2>&1; then
         if rustup target list --installed 2>/dev/null | grep -qx "$t"; then
             ok "rust target $t"
         else
-            bad "缺 rust target $t（rustup target add $t）"
+            bad "缺 rust target ${t}（rustup target add ${t}）"
         fi
     done
 fi

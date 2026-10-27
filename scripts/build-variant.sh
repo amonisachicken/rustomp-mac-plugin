@@ -31,7 +31,7 @@ source "$ROOT/scripts/plugin-env.sh"
 case "$VARIANT" in
     mono)   SUFFIX="Mono";   SUBTYPE="$AU_SUBTYPE_MONO";   BID="$AU_BUNDLE_ID.mono" ;;
     stereo) SUFFIX="Stereo"; SUBTYPE="$AU_SUBTYPE_STEREO"; BID="$AU_BUNDLE_ID.stereo" ;;
-    *) echo "未知变体：$VARIANT（只支持 mono / stereo）"; exit 1 ;;
+    *) echo "未知变体：${VARIANT}（只支持 mono / stereo）"; exit 1 ;;
 esac
 NAME="$PLUGIN_NAME $SUFFIX"
 BUNDLE_ID="$BID"

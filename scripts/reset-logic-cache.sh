@@ -19,7 +19,7 @@ for k in "${KEYS[@]}"; do
     if plutil -remove "$k" "$PLIST" 2>/dev/null; then
         echo "  已删除 $k"
     else
-        echo "  （无 $k）"
+        echo "  （无 ${k}）"
     fi
 done
 killall cfprefsd 2>/dev/null || true

@@ -37,7 +37,10 @@ while [ $# -gt 0 ]; do
         --format)  FORMATS+=("${2:?--format 需要参数}");  shift 2 ;;
         --no-install) INSTALL=0; shift ;;
         -*) die "未知参数：$1（--help 看用法）" ;;
-        *)  [ -z "$PLUGIN_DIR" ] || die "只能指定一个插件目录（已有 $PLUGIN_DIR）"
+        *)  # 位置参数与 $PLUGIN_DIR 冲突才算错（build.sh 会同时给两者）
+            if [ -n "$PLUGIN_DIR" ] && [ "$PLUGIN_DIR" != "$1" ]; then
+                die "只能指定一个插件目录（已有 ${PLUGIN_DIR}，又给了 $1）"
+            fi
             PLUGIN_DIR="$1"; shift ;;
     esac
 done
@@ -45,15 +48,15 @@ done
 [ -n "$PLUGIN_DIR" ] || { usage; exit 2; }
 PLUGIN_DIR="$(cd "$PLUGIN_DIR" && pwd)" || die "插件目录不存在：$PLUGIN_DIR"
 export PLUGIN_DIR
-[ -f "$PLUGIN_DIR/rustomp.toml" ] || die "$PLUGIN_DIR 不是插件项目（没有 rustomp.toml）"
+[ -f "$PLUGIN_DIR/rustomp.toml" ] || die "${PLUGIN_DIR} 不是插件项目（没有 rustomp.toml）"
 
 [ ${#VARIANTS[@]} -gt 0 ] || VARIANTS=(mono stereo)
 [ ${#FORMATS[@]}  -gt 0 ] || FORMATS=(au vst3 clap)
 for v in "${VARIANTS[@]}"; do
-    case "$v" in mono|stereo|dual) ;; *) die "不支持的 variant：$v（mono|stereo|dual）" ;; esac
+    case "$v" in mono|stereo|dual) ;; *) die "不支持的 variant：${v}（mono|stereo|dual）" ;; esac
 done
 for f in "${FORMATS[@]}"; do
-    case "$f" in au|vst3|clap) ;; *) die "不支持的 format：$f（au|vst3|clap）" ;; esac
+    case "$f" in au|vst3|clap) ;; *) die "不支持的 format：${f}（au|vst3|clap）" ;; esac
 done
 
 # ---------------------------------------------------------------- 1. 体检

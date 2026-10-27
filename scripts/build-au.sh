@@ -136,7 +136,7 @@ set +e
                  "$AU_TYPE" "$AU_SUBTYPE" "$AU_MANUFACTURER" 512 2
 SMOKE=$?
 set -e
-[ $SMOKE -eq 0 ] || { echo "AU 冒烟测试失败（退出码 $SMOKE）"; exit $SMOKE; }
+[ $SMOKE -eq 0 ] || { echo "AU 冒烟测试失败（退出码 ${SMOKE}）"; exit $SMOKE; }
 
 if [ "$INSTALL" = "0" ]; then
     echo "==> 跳过安装 (--no-install)"

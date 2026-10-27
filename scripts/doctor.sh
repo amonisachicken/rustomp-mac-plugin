@@ -36,8 +36,17 @@ command -v plutil >/dev/null 2>&1 && ok "plutil" || bad "没有 plutil（系统�
 
 # cargo-nih-plug：打包靠它（`cargo nih-plug bundle-universal`）。
 # 这不是 crates.io 上的普通依赖，必须显式装，且**钉同一个 rev**（见 deps.lock）。
-# 注意：不能用 `cargo nih-plug --help` 探测（它没有 --help 子命令，会返回非 0）
-if cargo --list 2>/dev/null | awk '{print $1}' | grep -qx nih-plug; then
+# 注意两个坑：
+#   1) `cargo nih-plug --help` 探测会误报（它没有 --help 子命令，返回非 0）；
+#   2) 本脚本开了 `set -o pipefail`，而 `... | grep -q` 会让 grep 提前退出 →
+#      上游 awk 收到 SIGPIPE(141) → 整条管道非 0 → 明明装了却报缺失。
+#      所以这里用 `command -v` + case 匹配，不用管道。
+_have_nih_plug=0
+command -v cargo-nih-plug >/dev/null 2>&1 && _have_nih_plug=1
+if [ "$_have_nih_plug" = "0" ]; then
+    case "$(cargo --list 2>/dev/null || true)" in *nih-plug*) _have_nih_plug=1 ;; esac
+fi
+if [ "$_have_nih_plug" = "1" ]; then
     ok "cargo-nih-plug"
 else
     bad "没有 cargo-nih-plug（装法：cargo install --git https://github.com/robbert-vdh/nih-plug.git --rev de42101 cargo-nih-plug --locked）"

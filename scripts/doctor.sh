@@ -65,11 +65,13 @@ if command -v rustup >/dev/null 2>&1; then
 fi
 
 # ---- 框架（读 manifest / 代码生成）----
+# 约定：三个仓放在同一个目录（框架与打包工具都是**插件项目的同级**）。
+# 探测顺序：显式 RUSTOMP_ROOT → 插件项目的同级 → 打包工具自己的同级
 FRAME="${RUSTOMP_ROOT:-}"
 if [ -z "$FRAME" ]; then
-    for c in "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/rustomp" \
-             "$HOME/develop/rustomp"; do
-        [ -f "$c/tools/meta/plugin_meta.py" ] && FRAME="$c" && break
+    for c in "${PLUGIN_DIR:-}/../rustomp" \
+             "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/rustomp"; do
+        [ -f "$c/tools/meta/plugin_meta.py" ] && FRAME="$(cd "$c" && pwd)" && break
     done
 fi
 if [ -n "$FRAME" ] && [ -f "$FRAME/tools/meta/plugin_meta.py" ]; then
@@ -82,11 +84,12 @@ else
         _tag="$(grep -oE 'tag = "v[0-9]+\.[0-9]+\.[0-9]+"' "$PLUGIN_DIR/Cargo.toml" 2>/dev/null | head -1 | sed 's/tag = "//; s/"$//')"
     fi
     _tag="${_tag:-v0.1.0}"
+    _where="${PLUGIN_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
     cat >&2 <<EOT
-    装一次即可（用插件钉的那个 tag）：
-      git clone --depth 1 --branch ${_tag} https://github.com/amonisachicken/rustomp.git ~/develop/rustomp
-      export RUSTOMP_ROOT=~/develop/rustomp
-    或放在插件项目的**同级目录**（自动找到）：../rustomp
+    约定：三个仓放在同一个目录（框架是插件项目的同级）
+      cd "${_where}/.."
+      git clone --depth 1 --branch ${_tag} https://github.com/amonisachicken/rustomp.git rustomp
+    克隆完重跑即可，不需要设环境变量。
     仓库：https://github.com/amonisachicken/rustomp
 EOT
 fi

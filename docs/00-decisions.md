@@ -140,7 +140,7 @@ bundle 的工厂函数，然后走 open / initialize / render，校验声道能�
 |---|---|
 | **standalone** | 需要音频设备选择/设置持久化，是独立的一件事；列为 v0.2 |
 | **AAX** | 需要 Avid 授权，且与 GPL-3 冲突 |
-| **Windows / Linux 打包** | 平台分仓（ADR-015）：Windows 已由 `rustomp-win-plugin` 实现（无 AU） |
+| **Windows / Linux 打包** | 平台分仓（ADR-015）：Windows（`rustomp-win-plugin`）与 Linux（`rustomp-linux-plugin`）都已落地，均无 AU |
 | **DSP / 代码生成 / 改插件源码** | 那是 rustomp 与 rustomp-gen 的职责；本仓只消费已生成的产物 |
 
 ---

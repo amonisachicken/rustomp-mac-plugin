@@ -157,7 +157,7 @@ docs/                    决策 / 架构 / Logic 兼容 / 依赖 / 排障 / 开�
 | 不做 | 原因 |
 |---|---|
 | **DSP / 代码生成 / 改插件源码** | 那是 rustomp 与 rustomp-gen 的职责；本仓只消费已生成的产物 |
-| **Windows / Linux 打包** | 平台分仓（ADR-015）；Windows 已由 [rustomp-win-plugin](https://github.com/amonisachicken/rustomp-win-plugin) 实现 |
+| **Windows / Linux 打包** | 平台分仓（ADR-015）：已由 [rustomp-win-plugin](https://github.com/amonisachicken/rustomp-win-plugin)（VST3/CLAP + MSI）与 [rustomp-linux-plugin](https://github.com/amonisachicken/rustomp-linux-plugin)（VST3/CLAP + tar.gz）实现 |
 | **AAX** | 需要 Avid 授权，且与 GPL-3 冲突 |
 | **AUv3** | 需要完整 Xcode 生成 appex，不在本期范围 |
 

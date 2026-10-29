@@ -139,7 +139,7 @@ docs/                    决策 / 架构 / Logic 兼容 / 依赖 / 排障 / 开�
 | `pkg` 安装包 | 未做：目前是"拷贝到用户插件目录" |
 | standalone | 未做：需要音频设备选择/设置持久化，列为 v0.2 |
 | dual（mono+stereo 同体）一键打包 | 只有 `scripts/build-au.sh` 这条过渡入口；`pack.sh` 只分派 mono/stereo |
-| CI | 本仓没有 workflow；框架仓的 macOS CI 会跑打包端 |
+| CI | 本仓没有 workflow；参考插件仓 `sparklin-drive` 的 CI 会三仓 checkout 跑打包端 |
 
 ### 明确不做
 

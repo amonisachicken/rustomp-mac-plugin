@@ -12,6 +12,7 @@
 |---|---|---|---|
 | **macOS** | 11 及以上（AU 的 `LSMinimumSystemVersion` 默认 11.0） | 运行宿主 | — |
 | **Xcode 命令行工具** | 当前 Xcode 对应版本 | `cc` / `lipo` / `plutil` / `codesign` / `auval` | `xcode-select -p` |
+| **hdiutil** | 系统自带 | 打 DMG（`--format dmg`） | `command -v hdiutil` |
 | **cmake** | ≥ 3.20（`cmake/CMakeLists.txt` 要求） | 编 clap-wrapper 的 AUv2 外壳 | `cmake --version` |
 | **Python** | ≥ 3.11（`tomllib`） | 读 `rustomp.toml`（框架的 `plugin_meta.py`） | `python3 -V` |
 | **Rust** | stable + 两个 target：`aarch64-apple-darwin`、`x86_64-apple-darwin` | universal 构建 | `rustup target list --installed` |

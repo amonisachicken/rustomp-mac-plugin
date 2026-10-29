@@ -19,7 +19,7 @@
 
 ```text
 pack.sh（契约 B 入口）
-  │  参数：<plugin_dir> [--variant mono|stereo]... [--format au|vst3|clap]... [--no-install]
+  │  参数：<plugin_dir> [--variant mono|stereo]... [--format au|vst3|clap|dmg]... [--no-install]
   │
   ├─ 1 体检         scripts/doctor.sh
   │                   cargo / Xcode CLT / cmake / cc / python3 / plutil /
@@ -39,14 +39,21 @@ pack.sh（契约 B 入口）
         ├─ ad-hoc 签名            → 内层 .clap → 外层 .component / .vst3 / .clap
         ├─ 安装（可选）           → ~/Library/Audio/Plug-Ins/{Components,VST3,CLAP}
         └─ au_smoke               → 进程内冒烟测试（单声道 1ch / 立体声 2ch）
+             写 build/artifacts-<variant>.txt（本变体三个产物的绝对路径）
 
-  └─ 4 汇总         stdout 逐行 `ARTIFACT: <绝对路径>`；一枚都没有则非 0 退出
+  ├─ 4 DMG（可选）  scripts/build-dmg.sh
+  │                   读 artifacts-*.txt → 按 --formats 过滤 → 暂存
+  │                   Payload/{Components,VST3,CLAP} + 安装.command + README.txt
+  │                   hdiutil create → build/dmg/<Name> Installer.dmg
+  │
+  └─ 5 汇总         stdout 逐行 `ARTIFACT: <绝对路径>`；一枚都没有则非 0 退出
 ```
 
 要点：
 
-- `--format` **只筛选 `ARTIFACT:` 列表**；每个变体都会构出三种格式（AU 内嵌 `.clap`，
-  VST3/CLAP 由同一次 `bundle-universal` 产出），安装也包含三种（除非 `--no-install`）；
+- `--format` 控制两件事：哪些路径进 `ARTIFACT:` 列表、**DMG 的 payload 放哪些格式**；
+  每个变体都会构出三种格式（AU 内嵌 `.clap`，VST3/CLAP 由同一次 `bundle-universal` 产出），
+  安装也包含三种（除非 `--no-install`）；
 - **所有日志走 stderr**（M-008），stdout 只有 `ARTIFACT:`；
 - 单个变体失败即整体失败（`set -euo pipefail`），不会产出"半套"；
 - cmake 的 configure / build 日志分别落在 `build/au-<variant>/{configure,build}.log`，
@@ -61,9 +68,27 @@ pack.sh（契约 B 入口）
 | AUv2 | `build/au-<variant>/<Name> Mono.component` | 目录包；`.clap` 嵌在 `Contents/PlugIns/` |
 | VST3 | `<plugin>/target/bundled/<Name> Mono.vst3` | nih-plug 产物改名后的目录包 |
 | CLAP | `<plugin>/target/bundled/<Name> Mono.clap` | 目录包，二进制在 `Contents/MacOS/` |
+| DMG | `build/dmg/<Name> Installer.dmg`（`--format dmg`） | 用户级安装包；内容见 §3.1 |
 
 `<Name>` = 插件名 + ` Mono` / ` Stereo`（dual 变体无后缀）。
 三个格式都是 **universal**（`x86_64` + `arm64`），可用 `lipo -info` 核对。
+
+### 3.1 DMG 里有什么
+
+```text
+<Name> Installer.dmg
+  Payload/Components/<Name> Mono.component     ← AUv2
+  Payload/VST3/<Name> Mono.vst3                ← VST3
+  Payload/CLAP/<Name> Mono.clap                ← CLAP
+  安装.command                                  ← 双击：复制到 ~/Library/Audio/Plug-Ins/
+  README.txt                                    ← 安装路径、缓存的清法、已知边界
+```
+
+- **安装范围是当前用户**（`~/Library/Audio/Plug-Ins`，不需要管理员）；
+  系统级 `/Library/Audio/Plug-Ins` 需要手动复制；
+- DMG 只**收集**已构建的产物（`build/artifacts-<variant>.txt`），不重新编译；
+- `安装.command` 里用 `$HOME`，在**用户机器上**展开；脚本只做复制 + 尽力重启 AU 注册表；
+- DMG 本身不做 Developer ID 签名/公证（与插件一样是本地开发形态）。
 
 ---
 
@@ -109,6 +134,7 @@ scripts/
   doctor.sh              环境体检（缺什么给"怎么装"）
   build-variant.sh       单变体：universal 构建 → 改名/plist → clap-wrapper → 签名 → 安装 → au_smoke
   build-au.sh            dual（双布局同体）变体的过渡构建（含 auval）
+  build-dmg.sh           把已构建产物打成 DMG（Payload + 安装.command + README）
   check-au.sh            只做 AU 自检（已安装的 .component）
   gen-bundler-toml.sh    从 rustomp.toml 生成 <plugin>/bundler.toml
   fetch-third-party.sh   按固定版本（见 deps.lock）拉第三方源码并应用 patches/
@@ -120,6 +146,7 @@ tools/au-smoke/          AU 进程内自检（C，绕开系统注册表）
 tools/clap-probe/        最小 CLAP 宿主（dump 端口/参数/身份）
 third_party/             第三方源码缓存（不入库，由 fetch-third-party.sh 填充）
 deps.lock                外部依赖的固定版本
+build/artifacts-<v>.txt  每个变体的产物清单（build-variant.sh 写，build-dmg.sh 读）
 docs/                    决策 / 架构 / 兼容 / 依赖 / 排障 / 开发日志
 ```
 

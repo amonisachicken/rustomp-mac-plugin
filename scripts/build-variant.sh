@@ -138,3 +138,13 @@ CH=1; [ "$VARIANT" = "stereo" ] && CH=2
 
 echo
 echo "完成：${NAME}  →  aufx / ${SUBTYPE} / ${MANUFACTURER}"
+
+# 供汇总步骤（如 DMG）读取：本变体产物的**绝对路径**
+# （build-dmg.sh 依赖这份清单，不自己拼路径）
+ARTIFACT_LIST="$ROOT/build/artifacts-${VARIANT}.txt"
+mkdir -p "$(dirname "$ARTIFACT_LIST")"
+{
+    printf '%s\n' "$(cd "$(dirname "$COMPONENT")" && pwd)/$(basename "$COMPONENT")"
+    printf '%s\n' "$DST_VST3"
+    printf '%s\n' "$DST_CLAP"
+} > "$ARTIFACT_LIST"

@@ -15,6 +15,7 @@
 | M-008 | 契约 B：**stdout 只允许 `ARTIFACT:` 行** | 框架/CI 只认这一行；其余日志全走 stderr |
 | M-009 | cmake 并行度默认 **4**，可用 `RUSTOMP_BUILD_JOBS` 覆盖 | `-j20` 在 10 核机器上是无谓的整机压力（本机有过内核恐慌史） |
 | M-010 | 不做 **standalone / AAX**；Windows/Linux 不在本仓 | standalone 是独立的一件事；AAX 与 GPL-3 冲突；平台分仓 |
+| M-011 | DMG 是**用户级**安装（`Payload` + `安装.command`），不做系统级 `/Library` | 免管理员、与 `--no-install` 语义一致；系统级留给 pkg |
 
 ---
 
@@ -141,3 +142,24 @@ bundle 的工厂函数，然后走 open / initialize / render，校验声道能�
 | **AAX** | 需要 Avid 授权，且与 GPL-3 冲突 |
 | **Windows / Linux 打包** | 平台分仓（ADR-015）：Windows 已由 `rustomp-win-plugin` 实现（无 AU） |
 | **DSP / 代码生成 / 改插件源码** | 那是 rustomp 与 rustomp-gen 的职责；本仓只消费已生成的产物 |
+
+---
+
+## M-011 DMG 只做用户级安装
+
+**背景**：Windows 的 MSI 有系统级 / 用户级两个包（W-010）；macOS 的分发习惯是 DMG。
+DMG 本身只是一个磁盘镜像，真正的“安装”得靠用户拖拽或里面的脚本。
+
+**决定**：`--format dmg` 产出 `<Name> Installer.dmg`，内容：
+
+```text
+Payload/{Components,VST3,CLAP}/…   三个格式的 bundle
+安装.command                        双击 → 复制到 ~/Library/Audio/Plug-Ins/
+README.txt                          安装路径 / Logic 缓存清法 / 已知边界
+```
+
+安装目标固定为**当前用户**；**不做**系统级 `/Library/Audio/Plug-Ins`
+（那需要管理员，且与 pkg 的职责重叠）。
+
+**后果**：分发路径简单、不会卡在提权对话框；代价是“装给全机所有用户”要用户手动复制。
+DMG 与插件都**没有** Developer ID 签名/公证（M-006），首次打开可能要在系统设置里放行。

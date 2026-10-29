@@ -42,6 +42,7 @@ else
     fi
 fi
 [ -f "$_PLUGIN_DIR/rustomp.toml" ] || { echo "找不到 $_PLUGIN_DIR/rustomp.toml"; exit 1; }
+_PLUGIN_DIR="$(cd "$_PLUGIN_DIR" && pwd)"
 
 # ---- 定位框架（manifest 读取器在 rustomp 里）----
 if [ -z "${RUSTOMP_ROOT:-}" ]; then

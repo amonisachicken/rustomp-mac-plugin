@@ -3,7 +3,7 @@
 #
 # **rustomp-mac-plugin 的入口** —— 契约 B 的实现（见 rustomp/docs/ecosystem.md §2）。
 #
-#   ./pack.sh <plugin_dir> [--variant mono|stereo|dual]... [--format au|vst3|clap]... [--no-install]
+#   ./pack.sh <plugin_dir> [--variant mono|stereo|dual]... [--format au|vst3|clap|dmg]... [--no-install]
 #
 # 成功：逐行打印 `ARTIFACT: <绝对路径>`，退出码 0。
 # 失败：非 0 退出 + 人话原因（缺 Xcode CLT / 缺 rust target / 素材缺失 / 框架找不到…）。
@@ -58,8 +58,10 @@ for v in "${VARIANTS[@]}"; do
     case "$v" in mono|stereo|dual) ;; *) die "不支持的 variant：${v}（mono|stereo|dual）" ;; esac
 done
 for f in "${FORMATS[@]}"; do
-    case "$f" in au|vst3|clap) ;; *) die "不支持的 format：${f}（au|vst3|clap）" ;; esac
+    case "$f" in au|vst3|clap|dmg) ;; *) die "不支持的 format：${f}（au|vst3|clap|dmg）" ;; esac
 done
+# 体检要知道请求了哪些格式（dmg 要查 hdiutil）
+export RUSTOMP_FORMATS="${FORMATS[*]}"
 
 # ---------------------------------------------------------------- 1. 体检
 "$PACKER_ROOT/scripts/doctor.sh" || die "环境体检未通过（见上面缺什么）"
@@ -106,11 +108,33 @@ for v in "${VARIANTS[@]}"; do
             au)   [ -d "$COMPONENT" ] && ARTIFACTS+=("$COMPONENT") ;;
             vst3) [ -d "$PLUGIN_DIR/target/bundled/${NAME}.vst3" ] && ARTIFACTS+=("$PLUGIN_DIR/target/bundled/${NAME}.vst3") ;;
             clap) [ -d "$PLUGIN_DIR/target/bundled/${NAME}.clap" ] && ARTIFACTS+=("$PLUGIN_DIR/target/bundled/${NAME}.clap") ;;
+            dmg)  : ;;   # DMG 在所有变体构建完后统一打，见下面第 4 步
         esac
     done
 done
 
-# ---------------------------------------------------------------- 4. 契约 B 的输出
+# ---------------------------------------------------------------- 4. DMG（可选）
+# payload 规则：只把 au/vst3/clap 里**显式请求过**的放进 DMG；
+# 只写 --format dmg 时默认三种全放（构建本来就会出三种）。
+PAYLOAD=()
+WANT_DMG=0
+for f in "${FORMATS[@]}"; do
+    case "$f" in
+        au|vst3|clap) PAYLOAD+=("$f") ;;
+        dmg) WANT_DMG=1 ;;
+    esac
+done
+if [ "$WANT_DMG" = "1" ]; then
+    [ ${#PAYLOAD[@]} -gt 0 ] || PAYLOAD=(au vst3 clap)
+    log
+    log "==> 打包 DMG（payload: ${PAYLOAD[*]}；variants: ${VARIANTS[*]}）"
+    DMG_PATH="$("$PACKER_ROOT/scripts/build-dmg.sh" \
+        --variants "${VARIANTS[*]}" --formats "${PAYLOAD[*]}")"
+    [ -f "$DMG_PATH" ] || die "DMG 没生成：$DMG_PATH"
+    ARTIFACTS+=("$DMG_PATH")
+fi
+
+# ---------------------------------------------------------------- 5. 契约 B 的输出
 log
 log "==> 产物"
 for a in "${ARTIFACTS[@]}"; do

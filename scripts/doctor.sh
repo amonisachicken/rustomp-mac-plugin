@@ -34,6 +34,11 @@ command -v python3 >/dev/null 2>&1 && ok "python3 $(python3 -V | awk '{print $2}
 
 command -v plutil >/dev/null 2>&1 && ok "plutil" || bad "没有 plutil（系统自带，异常）"
 
+# DMG 只需要 hdiutil（系统自带）；只在请求 dmg 时检查，避免与其它格式的体检耦合
+case " ${RUSTOMP_FORMATS:-} " in
+    *" dmg "*) command -v hdiutil >/dev/null 2>&1 && ok "hdiutil" || bad "没有 hdiutil（系统自带，异常；DMG 需要它）" ;;
+esac
+
 # cargo-nih-plug：打包靠它（`cargo nih-plug bundle-universal`）。
 # 这不是 crates.io 上的普通依赖，必须显式装，且**钉同一个 rev**（见 deps.lock）。
 # 注意两个坑：

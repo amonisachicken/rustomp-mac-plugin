@@ -123,3 +123,53 @@ Unknown CMake command "CPMAddPackage"
 
 **没做什么**：没有改任何构建逻辑（本轮纯文档）。Windows 仓的 CI、本仓的签名/公证、
 standalone 仍是未完成项，见 README §3。
+
+---
+
+## E7 效仿 Windows 的 MSI，给 macOS 加 DMG 安装包（2026-10-29）
+
+**背景**：Windows 仓已经有 `--format msi`（系统级 / 用户级两个包，E8）。
+macOS 侧此前只有“构建 + 拷贝到用户插件目录”，没有可分发的单个文件；
+用户要求补一个 DMG。
+
+**做了什么**：
+
+| 位置 | 改动 |
+|---|---|
+| `pack.sh` | `--format` 接受 `dmg`；所有变体构建完后调用 `build-dmg.sh`，把 DMG 路径也放进 `ARTIFACT:` 列表；导出 `RUSTOMP_FORMATS` 给体检用 |
+| `scripts/build-variant.sh` | 构建完写 `build/artifacts-<variant>.txt`（AU/VST3/CLAP 的**绝对路径**），供汇总步骤读取 |
+| `scripts/build-dmg.sh`（新） | 读清单 → 按 `--formats` 过滤 → 暂存 `Payload/{Components,VST3,CLAP}` + `安装.command` + `README.txt` → `hdiutil create`（UDZO/HFS+）→ stdout 只输出 DMG 路径 |
+| `scripts/plugin-env.sh` | `_PLUGIN_DIR` 归一化为绝对路径（清单里的路径必须能跨脚本解析） |
+| `scripts/doctor.sh` | 请求了 `dmg` 时检查 `hdiutil` |
+| `docs/` | 架构（§2/§3.1）、依赖、排障、决策 M-011、本日志 |
+
+**DMG 的形态**（为什么不是“拖进 Applications”）：
+
+```text
+Payload/Components|VST3|CLAP/…     三个格式的 bundle（mono/stereo 都在）
+安装.command                        双击复制到 ~/Library/Audio/Plug-Ins/
+README.txt                          安装路径、Logic 缓存清法、ad-hoc 签名说明
+```
+
+- 安装范围固定为**当前用户**（`$HOME`），不需要管理员，也不会卡在提权对话框；
+  系统级 `/Library/...` 明确不做（留给以后 `pkg`，M-011）；
+- `安装.command` 里用 `'EOF'` heredoc，`$HOME` 在**用户机器**上展开；
+- DMG 只做“容器 + 安装脚本”，**不等于**签名/公证：DMG 与插件都还是 ad-hoc 签名。
+
+**验证**（假产物，不触发真实编译）：
+
+| 检查 | 结果 |
+|---|---|
+| `build-dmg.sh`（mono+stereo，三种格式） | 生成 24 KB DMG（UDZO）；stdout 只有一行路径 |
+| 挂载后内容 | `Payload/{Components,VST3,CLAP}` 各 2 个 + `安装.command` + `README.txt`；`.command` 保留可执行位 |
+| payload 过滤（`--formats au`） | DMG 里只有 `Payload/Components/…` |
+| `安装.command` | `bash -n` 通过；`README.txt` 里印出了对应变体的 `plutil -remove "aufx-…"` |
+| `安装.command`（假 `HOME` + `killall` stub） | 三种格式都复制到 `~/Library/Audio/Plug-Ins/{Components,VST3,CLAP}`，路径与名字正确 |
+| `hdiutil imageinfo` | 通过（UDZO） |
+| `RUSTOMP_FORMATS=dmg ./scripts/doctor.sh --quiet` | rc=0（hdiutil 检查生效） |
+
+**未验证 / 边界**：
+
+- 没有跑真实插件的完整 `--format dmg`（需要重编译；用假清单验证了汇总与 DMG 生成）；
+- 没有在真实宿主里从 DMG 双击 `安装.command`（脚本逻辑已用假 `HOME` 实跑，`killall` 用 stub 避免扰动系统）；
+- DMG 不含版本号；未签名/未公证；系统级安装与 `pkg` 未做。

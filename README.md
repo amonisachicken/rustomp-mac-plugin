@@ -36,6 +36,7 @@ Windows 的同位实现是 [rustomp-win-plugin](https://github.com/amonisachicke
 | **AUv2 `.component`** | Logic 等 AU 宿主；`.clap` 嵌在 `Contents/PlugIns/`，用户只装一个文件 |
 | **VST3 `.vst3`** | 其他宿主；universal（x86_64 + arm64） |
 | **CLAP `.clap`** | 原生 CLAP 宿主；universal |
+| **DMG 安装包** | `<Name> Installer.dmg`：三种插件 + 双击安装脚本 + 说明（用户级，免管理员） |
 | **`ARTIFACT:` 行** | 契约 B 的唯一输出：框架/CI 只认这一行，不需要知道 macOS 的任何细节 |
 
 它解决的是**"改完 DSP 到能在 Logic 里听到"之间那段脏活**：universal 构建、mono/stereo
@@ -55,10 +56,11 @@ Windows 的同位实现是 [rustomp-win-plugin](https://github.com/amonisachicke
 | 安装 | ✅ 用户级 `~/Library/Audio/Plug-Ins/`，可 `--no-install` |
 | 自检 | ✅ `au_smoke`（进程内，绕开注册表）+ `auval`（`build-au.sh`）+ `clap-probe` |
 | 签名 | ✅ **ad-hoc**（`codesign -s -`）；Developer ID / 公证 ❌ |
-| pkg 安装包 | ❌ 未做 |
+| **DMG 安装包** | ✅ `--format dmg`（用户级：拖拽或双击 `安装.command`） |
+| pkg 安装包 | ❌ 未做（DMG 已覆盖“分发给用户”的主路径） |
 | standalone | ❌ 未做（列为 v0.2） |
 | CI | ❌ 本仓没有 workflow（参考插件仓 `sparklin-drive` 的 CI 会三仓 checkout 跑打包） |
-| 已知边界 | 只有 ad-hoc 签名；dual 无一键入口；Developer ID / 公证、`pkg` 未做 |
+| 已知边界 | 只有 ad-hoc 签名；dual 无一键入口；DMG 只装当前用户；Developer ID / 公证、`pkg` 未做 |
 
 ---
 
@@ -77,9 +79,14 @@ pack.sh（契约 B 入口）
         ├ plist 归位 + 断言     → subtype / type / manufacturer / factoryFunction
         ├ ad-hoc 签名           → 内层 .clap → 外层 .component / .vst3 / .clap
         ├ 安装（可选）          → ~/Library/Audio/Plug-Ins/{Components,VST3,CLAP}
-        └ au_smoke              → 进程内冒烟（mono 测 1ch / stereo 测 2ch）
+        ├ au_smoke              → 进程内冒烟（mono 测 1ch / stereo 测 2ch）
+        └ 写 manifest           → build/artifacts-<variant>.txt（绝对路径）
 
-  └  5 汇总         stdout 逐行 `ARTIFACT: <绝对路径>`；一枚都没有则非 0 退出
+  ├  5 DMG（--format dmg） scripts/build-dmg.sh
+  │       读 manifest → 按 --formats 过滤 → Payload/{Components,VST3,CLAP}
+  │       + 安装.command + README.txt → hdiutil create（UDZO）→ build/dmg/<Name> Installer.dmg
+  │
+  └  6 汇总         stdout 逐行 `ARTIFACT: <绝对路径>`；一枚都没有则非 0 退出
 ```
 
 | 层 | 选型 | 理由 |
@@ -90,6 +97,7 @@ pack.sh（契约 B 入口）
 | 签名 | `codesign --sign -`（ad-hoc） | 本地验证够用；分发签名单列（M-006） |
 | 验证 | `au_smoke`（自写 C）+ `auval` + `clap-probe` | 前两者分别解决"注册表坏了"和"系统校验" |
 | 并行度 | `RUSTOMP_BUILD_JOBS`（默认 4） | 不把整机压满（M-009） |
+| DMG | `hdiutil`（系统自带，UDZO/HFS+）+ `安装.command` | 不引第三方打包器；安装范围固定用户级（M-011） |
 
 ### 目录
 
@@ -99,6 +107,7 @@ scripts/
   doctor.sh              环境体检（缺什么给"怎么装"）
   build-variant.sh       单变体：universal 构建 → 改名/plist → clap-wrapper → 签名 → 安装 → au_smoke
   build-au.sh            dual（mono+stereo 同体）变体的过渡构建（含 auval）
+  build-dmg.sh           把已构建产物打成 DMG（Payload + 安装.command + README）
   check-au.sh            只做 AU 自检（已安装的 .component + Logic 缓存）
   gen-bundler-toml.sh    从 rustomp.toml 生成 <plugin>/bundler.toml
   fetch-third-party.sh   按固定版本拉第三方源码并应用 patches/（版本见 deps.lock）
@@ -123,10 +132,11 @@ docs/                    决策 / 架构 / Logic 兼容 / 依赖 / 排障 / 开�
 
 | 类别 | 内容 |
 |---|---|
-| **格式** | AUv2（`.component`）、VST3（`.vst3`）、CLAP（`.clap`） |
+| **格式** | AUv2（`.component`）、VST3（`.vst3`）、CLAP（`.clap`）、**DMG 安装包** |
 | **架构** | universal：`x86_64` + `arm64` 同体；最低系统版本默认 11.0（`MACOS_DEPLOYMENT_TARGET`） |
 | **变体** | mono / stereo，各自是**独立 AU 身份**（新 subtype + bundle id 后缀）；可一次出两个 |
 | **安装** | 用户级 `~/Library/Audio/Plug-Ins/{Components,VST3,CLAP}`；`--no-install` 只产出 |
+| **DMG** | `--format dmg` → `<Name> Installer.dmg`：`Payload/{Components,VST3,CLAP}` + `安装.command` + `README.txt`；安装范围是**当前用户**（系统级 `/Library/...` 需手动） |
 | **自检** | `au_smoke` 进程内开/初始化/渲染（校验声道数与 RMS）；`auval`（`build-au.sh`）；`clap-probe` 查端口 |
 | **通用性** | 只依赖 `rustomp.toml`（契约 A）；插件可以是更大 workspace 的成员（bundle 落插件根） |
 | **可诊断** | `doctor.sh` 逐项说"缺什么、怎么装"；cmake 日志落在 `build/au-<variant>/` |
@@ -136,7 +146,8 @@ docs/                    决策 / 架构 / Logic 兼容 / 依赖 / 排障 / 开�
 | 项 | 状态 |
 |---|---|
 | Developer ID 签名 / 公证 | 未做：对外分发才需要证书与 notarytool（本地是 ad-hoc） |
-| `pkg` 安装包 | 未做：目前是"拷贝到用户插件目录" |
+| `pkg` 安装包 | 未做：DMG 已能用（用户级）；pkg 的价值主要是系统级安装与统一卸载 |
+| DMG 的签名/公证 | 未做：DMG 本身没有 Developer ID 签名；里面是 ad-hoc 签名的插件 |
 | standalone | 未做：需要音频设备选择/设置持久化，列为 v0.2 |
 | dual（mono+stereo 同体）一键打包 | 只有 `scripts/build-au.sh` 这条过渡入口；`pack.sh` 只分派 mono/stereo |
 | CI | 本仓没有 workflow；参考插件仓 `sparklin-drive` 的 CI 会三仓 checkout 跑打包端 |
@@ -181,6 +192,7 @@ docs/                    决策 / 架构 / Logic 兼容 / 依赖 / 排障 / 开�
 ./scripts/doctor.sh                                # 一次性：体检
 ./pack.sh ../my-effect                             # mono + stereo，AU/VST3/CLAP，并安装
 ./pack.sh ../my-effect --variant stereo --format au --no-install
+./pack.sh ../my-effect --format dmg --no-install    # 额外产出 <Name> Installer.dmg（不装到本机）
 ```
 
 成功时 stdout **只有** `ARTIFACT:` 行（契约 B）：
@@ -189,18 +201,21 @@ docs/                    决策 / 架构 / Logic 兼容 / 依赖 / 排障 / 开�
 ARTIFACT: /Users/me/develop/rustomp-mac-plugin/build/au-mono/Sparklin Drive Mono.component
 ARTIFACT: /Users/me/develop/sparklin-drive/target/bundled/Sparklin Drive Mono.vst3
 ARTIFACT: /Users/me/develop/sparklin-drive/target/bundled/Sparklin Drive Mono.clap
+ARTIFACT: /Users/me/develop/rustomp-mac-plugin/build/dmg/Sparklin Drive Installer.dmg
 ```
 
 ### 参数与环境变量
 
 ```text
-pack.sh <plugin_dir> [--variant mono|stereo]... [--format au|vst3|clap]... [--no-install]
+pack.sh <plugin_dir> [--variant mono|stereo]... [--format au|vst3|clap|dmg]... [--no-install]
 
 默认：variant = mono + stereo，format = au + vst3 + clap，安装到 ~/Library/Audio/Plug-Ins/。
 
-> `--format` 只筛选 **`ARTIFACT:` 列表**：每个变体仍会把 AU/VST3/CLAP 全部构建（AU 内嵌
-> `.clap`，VST3/CLAP 由同一次 `bundle-universal` 产出），安装也包含三种。
-> 要真的不安装，用 `--no-install`。
+> `--format` 控制两件事：哪些路径进 **`ARTIFACT:` 列表**，以及 **DMG 里放哪些格式**。
+> 每个变体仍会把 AU/VST3/CLAP 全部构建（AU 内嵌 `.clap`，VST3/CLAP 由同一次
+> `bundle-universal` 产出）；写 `--format dmg` 会在所有变体构建完后额外生成
+> `<Name> Installer.dmg`（payload = 同时请求的 au/vst3/clap；只写 dmg 则三种全放）。
+> 安装到本机用户目录仍默认进行，`--no-install` 关闭它（不影响 DMG）。
 ```
 
 | 环境变量 | 默认 | 作用 |
@@ -220,6 +235,8 @@ pack.sh <plugin_dir> [--variant mono|stereo]... [--format au|vst3|clap]... [--no
 ./scripts/reset-logic-cache.sh                   # Logic 菜单不对时（先 ⌘Q 退出 Logic）
 ./scripts/build-au.sh                             # dual 双布局：构建 → 冒烟 → 安装 → auval
 ./scripts/build-au.sh --no-install                # 只到进程内冒烟（不装、不跑 auval）
+./pack.sh ../my-effect --format dmg --no-install  # 只产出 DMG（便于检查内容）
+hdiutil imageinfo "<...>/build/dmg/<Name> Installer.dmg"
 ```
 
 `check-au.sh` 是**只读**的：它先告诉你插件本身能不能渲染、Logic 缓存里记的是什么，

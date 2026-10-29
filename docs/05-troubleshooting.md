@@ -106,9 +106,61 @@ RUSTOMP_BUILD_JOBS=6 ./pack.sh ../my-effect
 
 ### 只想要 AU，但发现 VST3/CLAP 也被装了
 
-`--format` **只筛选 `ARTIFACT:` 列表**，不控制构建与安装：每个变体都会构出三种格式
-（AU 内嵌 `.clap`），安装也是三种。要真的不装，用 `--no-install`；
-“只装某一种格式”目前 **不支持**（需要的话请手动拷只想要的那份）。
+`--format` **不控制构建与安装**：每个变体都会构出三种格式（AU 内嵌 `.clap`），
+安装也是三种。它只筛选两处：`ARTIFACT:` 列表、**DMG 的 payload**。
+要真的不装到本机，用 `--no-install`；“只装某一种格式”目前 **不支持**
+（需要的话请手动拷只想要的那份）。
+
+---
+
+## DMG 安装包
+
+### `hdiutil create` 报 “Resource busy” / “文件已存在”
+
+**真因**：同名的 DMG 还挂载着，或者输出目录不可写。
+
+**处理**：
+
+```bash
+hdiutil info | grep -i "<Name> Installer"     # 找到挂载点
+hdiutil detach "/Volumes/<Name> Installer"    # 或在 Finder 里推出
+./pack.sh ../my-effect --format dmg --no-install
+```
+
+`build-dmg.sh` 会用 `-ov` 覆盖同名文件，但**不会**替你卸载已挂载的卷。
+
+### DMG 里少了一个格式
+
+**真因**：payload 按 `--format` 里**同时请求**的 au/vst3/clap 过滤。
+`--format dmg` 单独写 = 三种全放；`--format au dmg` = 只放 AU。
+
+**处理**：想要三种就写 `--format dmg`，或显式 `--format au vst3 clap dmg`。
+（注意：无论 payload 放什么，构建与安装仍是三种；见上一节。）
+
+### 双击 `安装.command` 没反应 / 提示“无法验证开发者”
+
+**真因**：DMG 没有 Developer ID 签名与公证，下载后文件带 quarantine；脚本本身也没有签名。
+
+**处理**：右键 `安装.command` → **打开** → 再确认一次；或在终端里：
+
+```bash
+cd "/Volumes/<Name> Installer"
+chmod +x 安装.command && ./安装.command
+```
+
+如果仍然被拦，可在“系统设置 → 隐私与安全性”里允许。**不要**把整个 DMG 或插件包
+`xattr -dr com.apple.quarantine` 当成常规步骤——那等于绕过系统的安全提示。
+
+### 装完宿主里还是旧的
+
+`安装.command` 只负责复制，不负责清宿主缓存。先完全退出宿主，再按
+[`03-logic-compat.md`](03-logic-compat.md) §3 清 Logic 缓存（DMG 的 `README.txt`
+里也印了对应的 `plutil -remove` 命令）。
+
+### 想装给全机（所有用户）
+
+DMG 的 `安装.command` 只写 `~/Library/Audio/Plug-Ins`。系统级安装要手动复制到
+`/Library/Audio/Plug-Ins/{Components,VST3,CLAP}`（需要管理员），或等 `pkg`。
 
 ---
 

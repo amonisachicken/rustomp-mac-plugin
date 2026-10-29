@@ -14,7 +14,7 @@ set -euo pipefail
 PACKER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 版本从 git tag 取（没装 git / 不是 clone 时退回硬编码）
 PACKER_VERSION="$(git -C "$PACKER_ROOT" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)"
-[ -n "$PACKER_VERSION" ] || PACKER_VERSION="0.1.6"
+[ -n "$PACKER_VERSION" ] || PACKER_VERSION="0.1.7"
 
 usage() {
     sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'

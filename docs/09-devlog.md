@@ -173,3 +173,17 @@ README.txt                          安装路径、Logic 缓存清法、ad-hoc �
 - 没有跑真实插件的完整 `--format dmg`（需要重编译；用假清单验证了汇总与 DMG 生成）；
 - 没有在真实宿主里从 DMG 双击 `安装.command`（脚本逻辑已用假 `HOME` 实跑，`killall` 用 stub 避免扰动系统）；
 - DMG 不含版本号；未签名/未公证；系统级安装与 `pkg` 未做。
+
+---
+
+## 发布 v0.1.7（2026-10-29）
+
+`v0.1.6` 之后的发布，内容：
+
+- **DMG 安装包**（E7）：`--format dmg` → `<Name> Installer.dmg`（Payload + `安装.command` + README）；
+- README 按 Windows 打包器的编排重组，细节进 `docs/`（M-001…M-011）；
+- 与 Linux 打包器（`rustomp-linux-plugin v0.1.0`）互链；
+- `pack.sh` 的版本回退常量同步到 0.1.7。
+
+验证：假产物 DMG 生成/挂载/payload 过滤/安装脚本（假 HOME）通过；真实插件的 DMG 由
+`sparklin-drive` 的 release workflow 验证。DMG 与插件仍是 **ad-hoc 签名**（未公证）。

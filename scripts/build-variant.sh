@@ -34,6 +34,13 @@ for a in "$@"; do
 done
 [ -n "$VARIANT" ] || { echo "用法: $0 [--no-install] <mono|stereo>"; exit 1; }
 source "$ROOT/scripts/plugin-env.sh"
+source "$ROOT/scripts/lib-toolchain.sh"
+
+# 先确认**同一套** rustc 有 universal 需要的两个 target（P4：否则要等 cargo 报 E0463）
+rp_check_universal_targets || {
+    echo "✗ 工具链不满足 universal 构建要求（见上面的修法）" >&2
+    exit 1
+}
 
 case "$VARIANT" in
     mono)   SUFFIX="Mono";   SUBTYPE="$AU_SUBTYPE_MONO";   BID="$AU_BUNDLE_ID.mono" ;;

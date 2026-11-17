@@ -17,8 +17,15 @@ MISSING=0
 [ "$QUIET" = "1" ] || echo "==> 环境体检（rustomp-mac-plugin）"
 
 # ---- 工具链 ----
-if command -v cargo >/dev/null 2>&1; then ok "cargo $(cargo --version | awk '{print $2}')"
-else bad "没有 cargo（装 Rust：https://rustup.rs）"; fi
+# 与 build 共用同一套 cargo/rustc（P4：曾经 doctor 用 rustup、build 用 PATH 里的 cargo）
+source "$(dirname "${BASH_SOURCE[0]}")/lib-toolchain.sh"
+rp_resolve_toolchain
+if [ -n "${RP_CARGO:-}" ]; then
+    ok "cargo $(rp_cargo_version)"
+    [ "$QUIET" = "1" ] || rp_print_toolchain
+else
+    bad "没有 cargo（装 Rust：https://rustup.rs）"
+fi
 
 if xcode-select -p >/dev/null 2>&1; then
     ok "Xcode CLT：$(xcode-select -p)"
@@ -58,13 +65,14 @@ else
 fi
 
 # ---- universal 需要两个 target ----
-if command -v rustup >/dev/null 2>&1; then
-    target=""
+# **用真正会被调用的那个 rustc 判断**（`rustc --print target-libdir`），
+# 而不是 `rustup target list` —— 两者在"PATH 里有两个 rust"时会给出相反结论。
+if [ -n "${RP_RUSTC:-}" ]; then
     for t in aarch64-apple-darwin x86_64-apple-darwin; do
-        if rustup target list --installed 2>/dev/null | grep -qx "$t"; then
+        if rp_target_installed "$t"; then
             ok "rust target $t"
         else
-            bad "缺 rust target ${t}（rustup target add ${t}）"
+            bad "当前 rustc 缺 target ${t}（rustup target add ${t}；若装了多个 rust，先统一 PATH）"
         fi
     done
 fi

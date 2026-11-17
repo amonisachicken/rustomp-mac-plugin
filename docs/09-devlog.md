@@ -187,3 +187,13 @@ README.txt                          安装路径、Logic 缓存清法、ad-hoc �
 
 验证：假产物 DMG 生成/挂载/payload 过滤/安装脚本（假 HOME）通过；真实插件的 DMG 由
 `sparklin-drive` 的 release workflow 验证。DMG 与插件仍是 **ad-hoc 签名**（未公证）。
+
+## 发布 v0.1.8（2026-10-29）
+
+- **doctor 与 build 用同一套 cargo/rustc**（下游 Freedist 报告 P4）：
+  新增 `scripts/lib-toolchain.sh`（`rp_resolve_toolchain` / `rp_target_installed` /
+  `rp_check_universal_targets`）；判断 target 用 `rustc --print target-libdir` 里有没有
+  `libcore-*.rlib`，而不是 `rustup target list`（PATH 里有多个 rust 时两者结论相反）。
+- `doctor.sh` 打印将要使用的 `cargo` / `rustc` / `sysroot`；
+  `build-variant.sh` 在构建前 fail fast 并给出修法（不再等 cargo 报 `E0463`）。
+- `pack.sh` 的版本回退常量同步到 0.1.8。
